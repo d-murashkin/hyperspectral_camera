@@ -57,6 +57,11 @@ class HyperSpectralImage(object):
             print('Unable to read band {0}. There are only {1} bands available.'.format(band_number, self.raster_count))
             return False
         return self.bands['Band_{0}'.format(band_number)], self.data[band_number - 1, :, :]
+    
+    def set_white_ref_box(self, x1, x2, y1, y2):
+        white_ref_box = self.data[:, y1:y2, x1:x2]
+        self.white_ref_spectrum = white_ref_box.mean(axis=(1, 2))
+        self.data_corrected = self.data / self.white_ref_spectrum[:, np.newaxis, np.newaxis]
 
 
 if __name__ == '__main__':
@@ -65,8 +70,16 @@ if __name__ == '__main__':
     input_image = '2019-03-05_023'
 #    input_image = 'test'
     img = HyperSpectralImage(input_folder, input_image)
-    plt.figure()
-    name, data = img.get_band(5)
-    plt.imshow(data, origin='upper')
+    f, ax = plt.subplots(1, 2)
+    band = 1
+    name, data = img.get_band(band)
+    ax[0].imshow(data, origin='upper', cmap='inferno')
+    img.set_white_ref_box(121, 196, 175, 254)
+#    img.set_white_ref_box(262, 323, 345, 395)
+    ax[1].imshow(img.data_corrected[band - 1, :, :], origin='upper', cmap='inferno')
     plt.title('Timestamp: {0}, wavelength={1}nm'.format(img.datetime, name))
+    plt.show()
+
+    plt.figure()
+    plt.plot(img.white_ref_spectrum)
     plt.show()
