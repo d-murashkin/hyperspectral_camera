@@ -37,7 +37,7 @@ class HyperSpectralImage(object):
         """ Read metadata (band list), number of raster bands and the data band by band. """
         self.bands = data.GetMetadata_Dict()
         self.raster_count = data.RasterCount
-        self.data = nd.rotate(np.array([data.GetRasterBand(i + 1).ReadAsArray() for i in range(self.raster_count)]), 270, axes=(1, 2))
+        self.data_raw = nd.rotate(np.array([data.GetRasterBand(i + 1).ReadAsArray() for i in range(self.raster_count)]), 270, axes=(1, 2))
 
         """ Read RGB images """
         self.scene = plt.imread(input_folder + input_image + '/results/RGBSCENE_{0}.png'.format(self.name))
@@ -56,30 +56,52 @@ class HyperSpectralImage(object):
         if band_number > self.raster_count:
             print('Unable to read band {0}. There are only {1} bands available.'.format(band_number, self.raster_count))
             return False
-        return self.bands['Band_{0}'.format(band_number)], self.data[band_number - 1, :, :]
+        return self.bands['Band_{0}'.format(band_number)], self.data_raw[band_number - 1, :, :]
     
     def set_white_ref_box(self, x1, x2, y1, y2):
-        white_ref_box = self.data[:, y1:y2, x1:x2]
+        white_ref_box = self.data_raw[:, y1:y2, x1:x2]
         self.white_ref_spectrum = white_ref_box.mean(axis=(1, 2))
-        self.data_corrected = self.data / self.white_ref_spectrum[:, np.newaxis, np.newaxis]
+        self.data = self.data_raw / self.white_ref_spectrum[:, np.newaxis, np.newaxis]
+
+    def show_preview(self, band):
+        """ Show preview of the data:
+            raw image for specified band,
+            white reference spectrum,
+            corrected image,
+            vertical profiles.
+        """
+        f, ax = plt.subplots(2, 2)
+        plt.suptitle('Preview of the spectral image, timestamp: {0}'.format(img.datetime), y=0.95, size=16)
+
+        ax[0][0].set_title('Raw data, {0} nm'.format(name))
+        ax[0][0].imshow(data_raw, origin='upper', cmap='inferno')
+
+        ax[1][0].set_title('Corrected data, {0} nm'.format(name))
+        ax[1][0].imshow(img.data[band - 1, :, :], origin='upper', cmap='inferno')
+
+        ax[0][1].set_title('White reference spectrum')
+        ax[0][1].plot(np.array([img.bands['Band_{0}'.format(i + 1)] for i in np.arange(img.raster_count)], dtype=np.float32), img.white_ref_spectrum)
+        ax[0][1].grid()
+
+        ax[1][1].set_title('Vertical profile')
+        ax[1][1].invert_yaxis()
+        for line in np.arange(250, 500, 50):
+            ax[1][1].plot(img.data[band, :, line], np.arange(512))
+#        ax[1][1].set_xlim([0.5, 1.5])
+        ax[1][1].grid()
+        ax[1][1].set_xlabel('Reflectance')
+        plt.show()
 
 
 if __name__ == '__main__':
     pass
-    input_folder = '/home/dmitrii/data/hypercamera/'
+    input_folder = '/home/dmitrii/data/hypercamera/snow_pits/'
     input_image = '2019-03-05_023'
-#    input_image = 'test'
+    input_folder = '/home/dmitrii/data/hypercamera/snow_surface/2019-04-11/'
+    input_image = '2019-04-11_015'
     img = HyperSpectralImage(input_folder, input_image)
-    f, ax = plt.subplots(1, 2)
-    band = 1
-    name, data = img.get_band(band)
-    ax[0].imshow(data, origin='upper', cmap='inferno')
-    img.set_white_ref_box(121, 196, 175, 254)
-#    img.set_white_ref_box(262, 323, 345, 395)
-    ax[1].imshow(img.data_corrected[band - 1, :, :], origin='upper', cmap='inferno')
-    plt.title('Timestamp: {0}, wavelength={1}nm'.format(img.datetime, name))
-    plt.show()
-
-    plt.figure()
-    plt.plot(img.white_ref_spectrum)
-    plt.show()
+    band = 10
+    name, data_raw = img.get_band(band)
+#    img.set_white_ref_box(121, 196, 175, 254)
+    img.set_white_ref_box(100, 150, 346, 390)
+    img.show_preview(band)
