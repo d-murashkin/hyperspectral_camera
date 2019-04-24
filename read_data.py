@@ -63,30 +63,36 @@ class HyperSpectralImage(object):
         self.white_ref_spectrum = white_ref_box.mean(axis=(1, 2))
         self.data = self.data_raw / self.white_ref_spectrum[:, np.newaxis, np.newaxis]
 
-    def show_preview(self, band):
+    def show_preview(self, band, vertical_lines=np.arange(250, 500, 50)):
         """ Show preview of the data:
             raw image for specified band,
             white reference spectrum,
             corrected image,
             vertical profiles.
         """
+        """ WARNING:
+            The data is being modified here.
+            This is an awful behaviour, that should always be avoided.
+            Remove the following line as soon as possible!
+        """
+        self.data[self.data > 1.5] = 1.5
         f, ax = plt.subplots(2, 2)
-        plt.suptitle('Preview of the spectral image, timestamp: {0}'.format(img.datetime), y=0.95, size=16)
+        plt.suptitle('Preview of the spectral image, timestamp: {0}'.format(self.datetime), y=0.95, size=16)
 
-        ax[0][0].set_title('Raw data, {0} nm'.format(name))
-        ax[0][0].imshow(data_raw, origin='upper', cmap='inferno')
+        ax[0][0].set_title('RGB sensor'.format(name))
+        ax[0][0].imshow(self.preview, origin='upper')
 
-        ax[1][0].set_title('Corrected data, {0} nm'.format(name))
-        ax[1][0].imshow(img.data[band - 1, :, :], origin='upper', cmap='inferno')
+        ax[1][0].set_title('Spectral sensor, {0} nm band'.format(name))
+        ax[1][0].imshow(self.data[band - 1, :, :], origin='upper', cmap='inferno')
 
         ax[0][1].set_title('White reference spectrum')
-        ax[0][1].plot(np.array([img.bands['Band_{0}'.format(i + 1)] for i in np.arange(img.raster_count)], dtype=np.float32), img.white_ref_spectrum)
+        ax[0][1].plot(np.array([img.bands['Band_{0}'.format(i + 1)] for i in np.arange(self.raster_count)], dtype=np.float32), self.white_ref_spectrum)
         ax[0][1].grid()
 
         ax[1][1].set_title('Vertical profile')
         ax[1][1].invert_yaxis()
-        for line in np.arange(250, 500, 50):
-            ax[1][1].plot(img.data[band, :, line], np.arange(512))
+        for line in vertical_lines:
+            ax[1][1].plot(self.data[band, :, line], np.arange(512))
 #        ax[1][1].set_xlim([0.5, 1.5])
         ax[1][1].grid()
         ax[1][1].set_xlabel('Reflectance')
@@ -95,13 +101,10 @@ class HyperSpectralImage(object):
 
 if __name__ == '__main__':
     pass
-    input_folder = '/home/dmitrii/data/hypercamera/snow_pits/'
-    input_image = '2019-03-05_023'
-    input_folder = '/home/dmitrii/data/hypercamera/snow_surface/2019-04-11/'
-    input_image = '2019-04-11_015'
+    input_folder = '/home/dm/work/data/tryoshnikov/snow_pits/2/spectrum/'
+    input_image = '2019-04-14_004'
     img = HyperSpectralImage(input_folder, input_image)
-    band = 10
+    band = 120
     name, data_raw = img.get_band(band)
-#    img.set_white_ref_box(121, 196, 175, 254)
-    img.set_white_ref_box(100, 150, 346, 390)
-    img.show_preview(band)
+    img.set_white_ref_box(410, 480, 400, 470)
+    img.show_preview(band, vertical_lines=np.arange(150, 351, 50))
